@@ -12,7 +12,7 @@
  */
 
 (async function () {
-  const catName = 'neno';
+const catName = 'neno';
   // Check if neno element exists 
   let img = document.getElementById(catName);
   if(!img) {console.log("Could not find neno tag"); return; };
@@ -44,9 +44,9 @@
   let posAnchor = anchor.getBoundingClientRect();
 
   // Debugging visuals for anchor
-  anchor.style.position = 'static';
-  anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
-  anchor.style.visibility = 'visible'; // 'visible'
+  // anchor.style.position = 'static';
+  // anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
+  // anchor.style.visibility = 'visible'; // 'visible'
 
   // Prevent jump if margins or padding are set
   img.style.padding = '0px 0px';
