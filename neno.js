@@ -125,6 +125,7 @@ const catName = 'neno';
 
   let flip = 1;
   let lastTime = 0;
+  let sinceNone = 0;
 
   requestAnimationFrame(loop); // Start loop
 
@@ -133,7 +134,6 @@ const catName = 'neno';
     if (isIdle) {
       currentX = posAnchor.left + window.scrollX;
       currentY = posAnchor.top + window.scrollY;
-      img.src = catName + '/alert.gif';
     }
     // Only execute loop every 250ms
     if (!(currentTime - lastTime >= 250) || isDragging || isIdle) {
@@ -156,18 +156,6 @@ const catName = 'neno';
 
     const distance = Math.hypot(dx, dy); //hypotenus
 
-    const directions = [
-      [0, "⬆️", "n"],
-      [45, "↗️", "ne"],
-      [90, "➡️", "e"],
-      [135, "↘️", "se"],
-      [180, "⬇️", "s"],
-      [225, "↙️", "sw"],
-      [270, "⬅️", "w"],
-      [315, "↖️", "nw"],
-      [360, "⬆️", "n"]
-    ];     
-
     // How far in each direction to split speed
     let nextX = (dx / distance) * speed;
     let nextY = (dy / distance) * speed;
@@ -180,23 +168,24 @@ const catName = 'neno';
     const toBottomBorder = currentBorderY - currentY;
     const toTopBorder = window.scrollY - currentY;
 
-    // const snapBack = false;
-    // if (follow != "initial") { // Go outside of border if needed when going to initial
-    //   // Check if next step goes beyond frame and neno is not outside of frame
-    //   // If so take a step only to the frame edge
-    //   if (nextX > toRightBorder && (!(currentX > currentBorderX) || snapBack)) // Right border
-    //     nextX = toRightBorder;  
-    //   else if (nextX < toLeftBorder && (!(currentX < window.scrollX) || snapBack)) // Left border
-    //       nextX = toLeftBorder;
-    //   if (nextY > toBottomBorder && (!(currentY > currentBorderY) || snapBack)) // Bottom border
-    //     nextY = toBottomBorder;
-    //   else if (nextY < toTopBorder && (!(currentY < window.scrollY) || snapBack)) // Top border
-    //       nextY = toTopBorder;
-    // }
+    const snapBack = false; // Snaps back onto frame edge if true
+    if (follow != "initial") { // Go outside of border if needed when going to initial
+      // Check if next step goes beyond frame and neno is not outside of frame
+      // If so take a step only to the frame edge
+      if (nextX > toRightBorder && (!(currentX > currentBorderX) || snapBack)) // Right border
+        nextX = toRightBorder;  
+      else if (nextX < toLeftBorder && (!(currentX < window.scrollX) || snapBack)) // Left border
+          nextX = toLeftBorder;
+      if (nextY > toBottomBorder && (!(currentY > currentBorderY) || snapBack)) // Bottom border
+        nextY = toBottomBorder;
+      else if (nextY < toTopBorder && (!(currentY < window.scrollY) || snapBack)) // Top border
+          nextY = toTopBorder;
+    }
 
-    let directon;
     // Direction for animation
+    let directon;
     const angleDegree = calcAngleDegrees(dx, dy);
+    const directions = [ [0, "⬆️", "n"], [45, "↗️", "ne"], [90, "➡️", "e"], [135, "↘️", "se"], [180, "⬇️", "s"], [225, "↙️", "sw"], [270, "⬅️", "w"], [315, "↖️", "nw"], [360, "⬆️", "n"] ];
     direction = getClosest(angleDegree, directions)[2];
 
     // Stepping
@@ -214,7 +203,6 @@ const catName = 'neno';
     else if ((distance < speed) &&
         (dx + dy != 0) &&
         (follow == "initial")) {
-
       isIdle = true;
       currentX = posAnchor.left;
       currentY = posAnchor.top;
@@ -227,20 +215,30 @@ const catName = 'neno';
       direction = "none";
     }
 
-    img.style.left = currentX + 'px';
-    img.style.top = currentY + 'px';
-
     // Alternates between 1 and 2 when stepping
     if (direction != "none")
       flip = (flip == 1) ? 2 : 1;
 
     // Set gif
-    if (direction == "none") {
-       img.src = catName + '/still.gif';
+    if (direction != "none" && sinceNone <= 1) {
+      currentX -= nextX; currentY -= nextY; // Don't move
+      if (sinceNone == 0)
+        img.src = catName + '/alert.gif';
+      else if (sinceNone == 1)
+        img.src = catName + '/still.gif';
+      sinceNone++;
+    }
+    else if (direction == "none") {
+      img.src = catName + '/still.gif';
+      sinceNone = 0;
     }
     else {
-       img.src = catName + '/' + direction + 'run' + flip + '.gif';
+      img.src = catName + '/' + direction + 'run' + flip + '.gif';
     }
+
+    // Actual movement
+    img.style.left = currentX + 'px';
+    img.style.top = currentY + 'px';
 
     requestAnimationFrame(loop);
   }
