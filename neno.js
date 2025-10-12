@@ -30,7 +30,7 @@ const catName = 'neno';
   if (catName == 'neno') img.style.filter = 'drop-shadow(0 0 5px #00ee00)'; // neno glows
 
   // Waits for click and uses mouse to get initial location
-  waitForLoad();
+  await waitForLoad();
   async function waitForLoad() {
   // Wait for the window load event
     await new Promise((resolve) => {
@@ -44,23 +44,21 @@ const catName = 'neno';
   let posAnchor = anchor.getBoundingClientRect();
 
   // Debugging visuals for anchor
-  // anchor.style.position = 'static';
-  // anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
-  // anchor.style.visibility = 'visible'; // 'visible'
+  anchor.style.position = 'static';
+  anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
+  anchor.style.visibility = 'visible'; // 'visible'
 
   // Prevent jump if margins or padding are set
   img.style.padding = '0px 0px';
   img.style.margin = '0px 0px';
   img.style.zIndex = '1000'; // Visible above most elements
   img.style.width = '32px'; // Change size as needed
-  img.style.position = 'absolute';
-
+  img.style.cursor = 'pointer'; // Finger hand cursor
   // Refresh posAnchor of anchor on window change
   window.addEventListener('scroll', posAnchorRefresh);
   window.addEventListener('resize', posAnchorRefresh);
   function posAnchorRefresh() {
     posAnchor = anchor.getBoundingClientRect();
-    console.log("resized");
   };
 
   const initialX = posAnchor.left + window.scrollX;
@@ -85,7 +83,6 @@ const catName = 'neno';
     function onMouseMove(moveEvent) {
       // Drag
       if (moveEvent.clientX - e.pageX != 0 || moveEvent.clientY - e.pageY != 0) {
-        // console.log('Drag started');
         isDragging = true;
 
         img.style.position = 'absolute';
@@ -110,12 +107,9 @@ const catName = 'neno';
 
       // Click
       if (!isDragging) {
-        // console.log('Click detected');
         follow = (follow == "mouse") ? "initial" : "mouse";
       // Drop
       } else {
-        // console.log('Drag ended');
-
         isDragging = false;
         follow = "mouse";
 
@@ -156,7 +150,6 @@ const catName = 'neno';
       dy = targetY - currentY - posImg.height / 2;
     }
     else if (follow == "initial") {
-      console.log(posAnchor.top, currentY);
       dx = posAnchor.left - currentX + window.scrollX;
       dy = posAnchor.top - currentY + window.scrollY;
     }
