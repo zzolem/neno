@@ -44,9 +44,9 @@ const catName = 'neno';
   let posAnchor = anchor.getBoundingClientRect();
 
   // Debugging visuals for anchor
-  anchor.style.position = 'static';
-  anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
-  anchor.style.visibility = 'visible'; // 'visible'
+  //anchor.style.position = 'static';
+  //anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
+  //anchor.style.visibility = 'visible'; // 'visible'
 
   // Prevent jump if margins or padding are set
   img.style.padding = '0px 0px';
@@ -244,8 +244,6 @@ const catName = 'neno';
           animation = Math.floor(Math.random() * 8) - 4; // (-5..3)
           animationCount = 0;
         }
-        // animation = 3;
-        console.log(animation);
 
         if (animation == 1)
           // Yawn
