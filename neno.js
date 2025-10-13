@@ -74,12 +74,14 @@ const catName = 'neno';
     targetY = e.pageY;
   });
 
-  let isDragging = false;
   let isIdle = true;
+  let animation = false;
+  let isDragging = false;
   let follow = "initial";
   img.addEventListener('mousedown', (e) => {
     isDragging = false;
     isIdle = false;
+    animation = false;
     function onMouseMove(moveEvent) {
       // Drag
       if (moveEvent.clientX - e.pageX != 0 || moveEvent.clientY - e.pageY != 0) {
@@ -90,7 +92,7 @@ const catName = 'neno';
         img.style.margin = '0px 0px';
 
         currentX = targetX - posImg.width / 2;
-        currentY = targetY; // Drop Offset
+        currentY = targetY + posImg.height / 20; // Drop Offset
         img.style.left = currentX + 'px';
         img.style.top = currentY + 'px';
         img.src = catName + '/held.gif';
@@ -126,7 +128,6 @@ const catName = 'neno';
   let flip = 1;
   let lastTime = 0;
   let sinceNone = 0;
-  let animation = false;
   let animationCount = 0;
   const loopEveryDefault = 250;
   let loopEvery = loopEveryDefault;
