@@ -1,6 +1,7 @@
-/* TODO: Add idle animations such as sleep, scratch and yawn
+/* DONE: Add idle animations such as sleep, scratch and yawn
+ * TODO: Fix space between different animations and not just random
  * TODO: Allow for more than one cat on a page
- * TODO: Add alert animation when starting to move
+ * DONE: Add alert animation when starting to move
  * DONE: Make it so neno does't stop under the mouse cursor
       (thresholdClose is calculated using width and speed)
  * DONE: If you click on him he goes back to initial position
@@ -8,7 +9,6 @@
  * TODO: Somehow allow user to specify speed (1-4) in html tag
  * TODO: Allow for sourcing cats by name from webneko.net
  * DONE: Make neno draggable
- * TODO: Make hanging from mouse animation when dragged
  */
 
 (async function () {
@@ -93,7 +93,7 @@ const catName = 'neno';
         currentY = targetY; // Drop Offset
         img.style.left = currentX + 'px';
         img.style.top = currentY + 'px';
-        img.src = catName + '/held1.gif';
+        img.src = catName + '/held.gif';
 
         // Change cursur and make nothing interactable
         document.documentElement.style.pointerEvents = 'none';
@@ -126,19 +126,26 @@ const catName = 'neno';
   let flip = 1;
   let lastTime = 0;
   let sinceNone = 0;
+  let animation = false;
+  let animationCount = 0;
+  const loopEveryDefault = 250;
+  let loopEvery = loopEveryDefault;
 
   requestAnimationFrame(loop); // Start loop
 
   // Animation loop to move the image smoothly
   function loop(currentTime) {
-    if (isIdle) {
+    if (isIdle) { // IsIdle is only in the initial location
       currentX = posAnchor.left + window.scrollX;
       currentY = posAnchor.top + window.scrollY;
     }
     // Only execute loop every 250ms
-    if (!(currentTime - lastTime >= 250) || isDragging || isIdle) {
+    if (!(currentTime - lastTime >= loopEvery) || isDragging || isIdle) {
       requestAnimationFrame(loop);
       return;
+    }
+    else {
+      loopEvery = loopEveryDefault;
     }
     lastTime = currentTime;
 
@@ -210,8 +217,9 @@ const catName = 'neno';
       copyMarginPadding(initialStyleImg, img);
       direction = "none"; // Snaps more into place with this
     }
-    // Idling
+    // Idling when waiting for mouse to move
     else {
+
       direction = "none";
     }
 
@@ -229,10 +237,76 @@ const catName = 'neno';
       sinceNone++;
     }
     else if (direction == "none") {
-      img.src = catName + '/still.gif';
+      if (Math.floor(Math.random() * 4) == 0 || animation) {
+
+        if (!animation || animation < 0) {
+          // Negative means no animation, 1..3 means animation
+          animation = Math.floor(Math.random() * 8) - 4; // (-5..3)
+          animationCount = 0;
+        }
+        // animation = 3;
+        console.log(animation);
+
+        if (animation == 1)
+          // Yawn
+          if (animationCount <= 4) {
+            img.src = catName + '/yawn.gif';
+          }
+          else if (animationCount <= 10){
+            img.src = catName + '/still.gif';
+          }
+          else {
+            img.src = catName + '/still.gif';
+            animation = 100;
+          }
+        // Sleep
+        else if (animation == 100) {
+          if ((animationCount % 6) < 3) {
+            img.src = catName + '/sleep1.gif';
+          } else {
+            img.src = catName + '/sleep2.gif';
+          }
+        }
+        // Itch
+        else if (animation == 2) {
+          loopEvery = 150;
+          if (animationCount % 2 == 0)
+            img.src = catName + '/itch1.gif';
+          else
+            img.src = catName + '/itch2.gif';
+          if (animationCount >= 11)
+            animation = false;
+        }
+        // Scratch
+        else if (animation >= 3) {
+          const alternating = animationCount % 2 + 1;
+          if (animation == 3)
+            animation = Math.floor(Math.random() * 4) + 4;
+
+          if (animation == 4)
+            img.src = catName + '/nscratch' + alternating + '.gif';
+          else if (animation == 5)
+            img.src = catName + '/sscratch' + alternating + '.gif';
+          else if (animation == 6)
+            img.src = catName + '/escratch' + alternating + '.gif';
+          else if (animation == 7)
+            img.src = catName + '/wscratch' + alternating + '.gif';
+          if (animationCount >= 7)
+            animation = false;
+        }
+        else {
+          img.src = catName + '/still.gif';
+        }
+
+        animationCount++;
+      }
+      else {
+        img.src = catName + '/still.gif';
+      }
       sinceNone = 0;
     }
     else {
+      animation = false;
       img.src = catName + '/' + direction + 'run' + flip + '.gif';
     }
 
