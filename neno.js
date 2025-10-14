@@ -1,24 +1,36 @@
 /* DONE: Add idle animations such as sleep, scratch and yawn
- * TODO: Fix space between different animations and not just random
- * TODO: Allow for more than one cat on a page
  * DONE: Add alert animation when starting to move
  * DONE: Make it so neno does't stop under the mouse cursor
       (thresholdClose is calculated using width and speed)
  * DONE: If you click on him he goes back to initial position
       (placing an anchor div under him to save location on resize)
+ * DONE: Make neno draggable
+ * DONE: Allow for more than one cat on a page
  * TODO: Somehow allow user to specify speed (1-4) in html tag
  * TODO: Allow for sourcing cats by name from webneko.net
- * DONE: Make neno draggable
+ * TODO: Randomize how long an alert takes
+ * TODO: Make nenos smoothly keep a distance to each other
+ * TODO: Add space between different animations and not just random
+ * FIX: Neno restarts animations when mousedown before drag or mouseup
+ * FIX: Neno initialized with position ≠ static glitch out
  */
 
 (async function () {
-const catName = 'neno';
-  // Check if neno element exists 
-  let img = document.getElementById(catName);
-  if(!img) {console.error("Could not find neno tag"); return; };
-  if(img.tagName !== 'IMG') {console.error("Neno tag was not an img tag"); return; };
+  const imgID = 'neno';
+  const catName = imgID;
+  // Wait for DOM to load
+  document.addEventListener("DOMContentLoaded", () => {
+    // Get all nenos
+    const images = document.querySelectorAll("img." + imgID);
+    if(images.length == 0) {console.error("Could not find a neno tag"); return; };
+    images.forEach(img => {
+      nenoController(img, catName);
+    });
+  });
+})();
 
-  // Remove default dragging functionality from neno
+async function nenoController(img, catName) {
+  // Remove default dragging functionality for neno
   img.addEventListener('dragstart', preventDrag);
   function preventDrag(e) {
     e.preventDefault();
@@ -141,6 +153,7 @@ const catName = 'neno';
     if (isIdle) { // IsIdle is only in the initial location
       currentX = posAnchor.left + window.scrollX;
       currentY = posAnchor.top + window.scrollY;
+      img.src = catName + '/still.gif';
     }
     // Only execute loop every 250ms
     if (!(currentTime - lastTime >= loopEvery) || isDragging || isIdle) {
@@ -365,4 +378,4 @@ const catName = 'neno';
       element.addEventListener('click', handler);
     });
   }
-})();
+}
