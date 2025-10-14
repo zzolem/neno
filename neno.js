@@ -15,8 +15,8 @@
 const catName = 'neno';
   // Check if neno element exists 
   let img = document.getElementById(catName);
-  if(!img) {console.log("Could not find neno tag"); return; };
-  if(img.tagName !== 'IMG') {console.log("Neno tag was not an img tag"); return; };
+  if(!img) {console.error("Could not find neno tag"); return; };
+  if(img.tagName !== 'IMG') {console.error("Neno tag was not an img tag"); return; };
 
   // Remove default dragging functionality from neno
   img.addEventListener('dragstart', preventDrag);
@@ -92,7 +92,7 @@ const catName = 'neno';
         img.style.margin = '0px 0px';
 
         currentX = targetX - posImg.width / 2;
-        currentY = targetY + posImg.height / 20; // Drop Offset
+        currentY = targetY + posImg.height / 20; // Hold Offset
         img.style.left = currentX + 'px';
         img.style.top = currentY + 'px';
         img.src = catName + '/held.gif';
@@ -112,6 +112,8 @@ const catName = 'neno';
         follow = (follow == "mouse") ? "initial" : "mouse";
       // Drop
       } else {
+        currentX = targetX - posImg.width / 2;
+        currentY = targetY + posImg.width / 4; // Drop Offset
         isDragging = false;
         follow = "mouse";
 
