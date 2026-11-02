@@ -1,0 +1,63 @@
+name: Release Neno
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: neno-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm install --global terser@5.51.2
+      - run: ./build.sh
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Add Neno to your website:
+
+          ```html
+          <img class="neno" alt="Neno">
+          <script defer src="https://zzolem.github.io/neno/neno.min.js"></script>
+          ```
+
+          [Try the demo](https://zzolem.github.io/neno/).
+
+          NOTES
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/neno.min.js --clobber
+            gh release edit "$RELEASE_TAG" --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" dist/neno.min.js \
+              --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md
+          fi
+      - name: Use the release file for GitHub Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release download "$RELEASE_TAG" --pattern neno.min.js --dir dist --clobber
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - name: Publish demo and latest script
+        id: deployment
+        uses: actions/deploy-pages@v4

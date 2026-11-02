@@ -24,3 +24,5 @@ result = subprocess.run(
 )
 pathlib.Path('dist/neno.min.js').write_text(result.stdout)
 PY
+
+cp demo/index.html dist/
