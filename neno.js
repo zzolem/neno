@@ -38,6 +38,9 @@
 
 function nenoController(img, spriteURL) {
   const events = new AbortController();
+  // A small personal chase angle spreads paths without changing the speed.
+  const turn = (Math.random() - .5) * .24;
+  const chaseCos = Math.cos(turn), chaseSin = Math.sin(turn);
   let currentSprite;
   function setSprite(name) {
     if (name === currentSprite) return;
@@ -256,12 +259,18 @@ function nenoController(img, spriteURL) {
     const distance = Math.hypot(dx, dy); //hypotenus
 
     // How far in each direction to split speed
-    const nextX = distance ? (dx / distance) * speed : 0;
-    const nextY = distance ? (dy / distance) * speed : 0;
+    let nextX = distance ? (dx / distance) * speed : 0;
+    let nextY = distance ? (dy / distance) * speed : 0;
+    if (follow === 'mouse' && cats.size > 1) {
+      // Only bend the chase; the return home keeps its original straight path.
+      const x = nextX;
+      nextX = x * chaseCos - nextY * chaseSin;
+      nextY = x * chaseSin + nextY * chaseCos;
+    }
 
     // Direction for animation
     let direction;
-    const angleDegree = calcAngleDegrees(dx, dy);
+    const angleDegree = calcAngleDegrees(nextX, nextY);
     const directions = [ [0, "⬆️", "n"], [45, "↗️", "ne"], [90, "➡️", "e"], [135, "↘️", "se"], [180, "⬇️", "s"], [225, "↙️", "sw"], [270, "⬅️", "w"], [315, "↖️", "nw"], [360, "⬆️", "n"] ];
     direction = getClosest(angleDegree, directions)[2];
 
@@ -293,9 +302,11 @@ function nenoController(img, spriteURL) {
     // Set gif
     if (direction != "none" && sinceNone <= 1) {
       currentX -= nextX; currentY -= nextY; // Don't move
-      if (sinceNone == 0)
+      if (sinceNone == 0) {
         setSprite('alert');
-      else if (sinceNone == 1)
+        // Vary only the alert pause; running keeps its regular pace.
+        if (follow === 'mouse') loopEvery = 150 + Math.random() * 200;
+      } else if (sinceNone == 1)
         setSprite('still');
       sinceNone++;
     }

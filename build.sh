@@ -5,6 +5,7 @@ mkdir -p dist
 
 python3 - <<'PY'
 import base64
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -23,6 +24,7 @@ result = subprocess.run(
     input=source, text=True, capture_output=True, check=True
 )
 pathlib.Path('dist/neno.min.js').write_text(result.stdout)
+version = hashlib.sha256(result.stdout.encode()).hexdigest()[:12]
+html = pathlib.Path('demo/index.html').read_text().replace('./neno.min.js', './neno.min.js?v=' + version)
+pathlib.Path('dist/index.html').write_text(html)
 PY
-
-cp demo/index.html dist/
