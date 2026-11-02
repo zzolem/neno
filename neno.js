@@ -1,143 +1,208 @@
-/* DONE: Add idle animations such as sleep, scratch and yawn
- * DONE: Add alert animation when starting to move
- * DONE: Make it so neno does't stop under the mouse cursor
-      (thresholdClose is calculated using width and speed)
- * DONE: If you click on him he goes back to initial position
-      (placing an anchor div under him to save location on resize)
- * DONE: Make neno draggable
- * DONE: Allow for more than one cat on a page
- * TODO: Somehow allow user to specify speed (1-4) in html tag
- * TODO: Allow for sourcing cats by name from webneko.net
- * TODO: Randomize how long an alert takes
- * TODO: Make nenos smoothly keep a distance to each other
- * TODO: Add space between different animations and not just random
- * FIX: Neno restarts animations when mousedown before drag or mouseup
- * FIX: Neno initialized with position ≠ static glitch out
- */
-
-(async function () {
+(function () {
+  if (window.Neno) return;
+  // The release build replaces this with the encoded GIFs.
+  const sprites = null;
+  const scriptURL = document.currentScript?.src || document.baseURI;
+  const spriteURL = name => sprites ? sprites[name] : new URL('neno/' + name + '.gif', scriptURL).href;
+  const cats = new Map();
   const imgID = 'neno';
-  const catName = imgID;
   // Wait for DOM to load
-  document.addEventListener("DOMContentLoaded", () => {
+  function start() {
     // Get all nenos
-    const images = document.querySelectorAll("img." + imgID);
-    if(images.length == 0) {console.error("Could not find a neno tag"); return; };
+    const images = document.querySelectorAll("img." + imgID + ", img#" + imgID);
     images.forEach(img => {
-      nenoController(img, catName);
+      if (cats.has(img)) return;
+      nenoController(img, spriteURL);
     });
-  });
-})();
+  }
+  window.Neno = {
+    init: start,
+    spawn(container = document.body) {
+      const img = document.createElement('img');
+      img.className = 'neno';
+      img.alt = 'Neno';
+      container.appendChild(img);
+      nenoController(img, spriteURL);
+      return img;
+    },
+    clear() {
+      for (const remove of cats.values()) remove();
+    },
+    get count() { return cats.size; }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
 
-async function nenoController(img, catName) {
+function nenoController(img, spriteURL) {
+  const events = new AbortController();
+  let currentSprite;
+  function setSprite(name) {
+    if (name === currentSprite) return;
+    currentSprite = name;
+    img.src = spriteURL(name);
+  }
   // Remove default dragging functionality for neno
-  img.addEventListener('dragstart', preventDrag);
+  img.addEventListener('dragstart', preventDrag, { signal: events.signal });
   function preventDrag(e) {
     e.preventDefault();
   };
 
-  img.src = catName + '/still.gif';
+  setSprite('still');
 
-  // img.style.visibility = "hidden";
-  if (catName == 'neno') img.style.filter = 'drop-shadow(0 0 5px #00ee00)'; // neno glows
-
-  // Waits for click and uses mouse to get initial location
-  await waitForLoad();
-  async function waitForLoad() {
-  // Wait for the window load event
-    await new Promise((resolve) => {
-      window.addEventListener('load', resolve); // Resolve once everything is loaded
-    });
-  }
-
-  const anchor = wrapImageWithContainer(img);
-  const posImg = img.getBoundingClientRect();
-  const initialStyleImg = window.getComputedStyle(img);
-  let posAnchor = anchor.getBoundingClientRect();
-
-  // Debugging visuals for anchor
-  //anchor.style.position = 'static';
-  //anchor.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; // semi-transparent red
-  //anchor.style.visibility = 'visible'; // 'visible'
-
-  // Prevent jump if margins or padding are set
-  img.style.padding = '0px 0px';
-  img.style.margin = '0px 0px';
-  img.style.zIndex = '1000'; // Visible above most elements
-  img.style.width = '32px'; // Change size as needed
-  img.style.cursor = 'pointer'; // Finger hand cursor
-  // Refresh posAnchor of anchor on window change
-  window.addEventListener('scroll', posAnchorRefresh);
-  window.addEventListener('resize', posAnchorRefresh);
-  function posAnchorRefresh() {
-    posAnchor = anchor.getBoundingClientRect();
-  };
-
-  const initialX = posAnchor.left + window.scrollX;
-  const initialY = posAnchor.top + window.scrollY;
-  let targetX = initialX;
-  let targetY = initialY;
-  let currentX = targetX;
-  let currentY = targetY;
-
-  // Get mouse coordinates
-  document.addEventListener('mousemove', function (e) {
-    targetX = e.pageX;
-    targetY = e.pageY;
-  });
-
+  const anchor = document.createElement('img');
+  anchor.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR4nO3BAQEAAACCIP+vbkhAAQAAAO8GECAAARlDNO4AAAAASUVORK5CYII=';
+  anchor.alt = '';
+  anchor.setAttribute('aria-hidden', 'true');
+  anchor.style.visibility = 'hidden';
+  const posImg = { width: 32, height: 32 };
+  img.style.setProperty('width', '32px', 'important');
+  img.style.setProperty('height', '32px', 'important');
+  img.style.cursor = 'pointer';
+  img.style.touchAction = 'none';
+  img.style.userSelect = 'none';
+  img.style.filter = 'drop-shadow(0 0 5px #00ee00)';
+  const homeStyle = img.style.cssText;
+  img.removeAttribute('srcset');
+  img.loading = 'eager';
+  img.draggable = false;
+  let targetX = 0;
+  let targetY = 0;
+  let currentX = 0;
+  let currentY = 0;
   let isIdle = true;
   let animation = false;
   let isDragging = false;
   let follow = "initial";
-  img.addEventListener('mousedown', (e) => {
+  let pagePosition = false;
+
+  function positionOnPage(onPage) {
+    if (pagePosition === onPage) return;
+    const direction = onPage ? 1 : -1;
+    currentX += direction * window.scrollX;
+    currentY += direction * window.scrollY;
+    pagePosition = onPage;
+    img.style.setProperty('position', onPage ? 'absolute' : 'fixed', 'important');
+  }
+
+  function activate() {
+    const rect = img.getBoundingClientRect();
+    const style = window.getComputedStyle(img);
+    // Hold the image's layout slot while it moves around the viewport.
+    for (const property of ['display', 'position', 'float', 'vertical-align', 'margin', 'padding', 'border', 'box-sizing', 'top', 'right', 'bottom', 'left']) {
+      anchor.style.setProperty(property, style.getPropertyValue(property));
+    }
+    if (style.display === 'inline') anchor.style.display = 'inline-block';
+    anchor.style.width = style.width;
+    anchor.style.height = style.height;
+    img.replaceWith(anchor);
+    document.documentElement.appendChild(img);
+    img.style.cssText = 'all: initial !important; display: block !important; position: fixed !important; inset: auto !important; width: 32px !important; height: 32px !important; z-index: 1000 !important; cursor: pointer !important; touch-action: none !important; user-select: none !important; filter: drop-shadow(0 0 5px #00ee00) !important;';
+    currentX = rect.left;
+    currentY = rect.top;
+    pagePosition = false;
+    isIdle = false;
+    renderPosition();
+  }
+
+  function returnHome() {
+    img.style.cssText = homeStyle;
+    anchor.replaceWith(img);
+    isIdle = true;
+    follow = 'initial';
+    setSprite('still');
+  }
+
+  // Pointer coordinates stay relative to the viewport.
+  function updateTarget(e) {
+    if (!e.isPrimary) return;
+    targetX = e.clientX;
+    targetY = e.clientY;
+  }
+  document.addEventListener('pointermove', updateTarget);
+  window.addEventListener('resize', renderPosition);
+  window.visualViewport?.addEventListener('resize', renderPosition);
+  window.visualViewport?.addEventListener('scroll', renderPosition);
+  function renderPosition() {
+    if (isIdle) return;
+    const viewport = window.visualViewport;
+    const left = viewport?.offsetLeft || 0;
+    const top = viewport?.offsetTop || 0;
+    const width = viewport?.width || document.documentElement.clientWidth;
+    const height = viewport?.height || document.documentElement.clientHeight;
+    if (follow === 'mouse' || isDragging) {
+      currentX = Math.max(left, Math.min(currentX, left + Math.max(0, width - 32)));
+      currentY = Math.max(top, Math.min(currentY, top + Math.max(0, height - 32)));
+    }
+    img.style.setProperty('left', currentX + 'px', 'important');
+    img.style.setProperty('top', currentY + 'px', 'important');
+  }
+  let cancelDrag;
+  img.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !e.isPrimary || cancelDrag) return;
+    e.preventDefault();
+    updateTarget(e);
+    if (isIdle) activate();
+    positionOnPage(false);
+    renderPosition();
+    img.setPointerCapture(e.pointerId);
     isDragging = false;
     isIdle = false;
     animation = false;
     function onMouseMove(moveEvent) {
       // Drag
-      if (moveEvent.clientX - e.pageX != 0 || moveEvent.clientY - e.pageY != 0) {
+      if (moveEvent.pointerId !== e.pointerId) return;
+      if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+        onMouseUp(moveEvent);
+        return;
+      }
+      if (Math.hypot(moveEvent.clientX - e.clientX, moveEvent.clientY - e.clientY) > 3) {
         isDragging = true;
-
-        img.style.position = 'absolute';
-        img.style.padding = '0px 0px';
-        img.style.margin = '0px 0px';
-
+        updateTarget(moveEvent);
         currentX = targetX - posImg.width / 2;
         currentY = targetY + posImg.height / 20; // Hold Offset
-        img.style.left = currentX + 'px';
-        img.style.top = currentY + 'px';
-        img.src = catName + '/held.gif';
-
-        // Change cursur and make nothing interactable
-        document.documentElement.style.pointerEvents = 'none';
-        document.documentElement.style.cursor = 'grabbing';
+        renderPosition();
+        setSprite('held');
+        img.style.setProperty('cursor', 'grabbing', 'important');
       }
     }
 
     function onMouseUp(upEvent) {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      if (upEvent.pointerId !== undefined && upEvent.pointerId !== e.pointerId) return;
+      document.removeEventListener('pointermove', onMouseMove);
+      document.removeEventListener('pointerup', onMouseUp);
+      document.removeEventListener('pointercancel', onMouseUp);
+      img.removeEventListener('lostpointercapture', onMouseUp);
+      window.removeEventListener('blur', onMouseUp);
+      cancelDrag = null;
+      if (img.hasPointerCapture(e.pointerId)) img.releasePointerCapture(e.pointerId);
 
       // Click
-      if (!isDragging) {
+      if (!isDragging && upEvent.type === 'pointerup') {
         follow = (follow == "mouse") ? "initial" : "mouse";
       // Drop
-      } else {
+      } else if (isDragging) {
         currentX = targetX - posImg.width / 2;
         currentY = targetY + posImg.width / 4; // Drop Offset
         isDragging = false;
         follow = "mouse";
 
-        // Reset cursur and restore interactability
-        document.documentElement.style.pointerEvents = 'auto';
-        document.documentElement.style.cursor = 'default';
       }
+      img.style.setProperty('cursor', 'pointer', 'important');
+      setSprite('still');
+      positionOnPage(follow === 'initial');
+      renderPosition();
     }
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  });
+    cancelDrag = () => onMouseUp({ type: 'cancel' });
+    document.addEventListener('pointermove', onMouseMove);
+    document.addEventListener('pointerup', onMouseUp);
+    document.addEventListener('pointercancel', onMouseUp);
+    img.addEventListener('lostpointercapture', onMouseUp);
+    window.addEventListener('blur', onMouseUp);
+  }, { signal: events.signal });
 
   let flip = 1;
   let lastTime = 0;
@@ -145,19 +210,29 @@ async function nenoController(img, catName) {
   let animationCount = 0;
   const loopEveryDefault = 250;
   let loopEvery = loopEveryDefault;
+  let frame;
+  function remove() {
+    cancelDrag?.();
+    events.abort();
+    cancelAnimationFrame(frame);
+    document.removeEventListener('pointermove', updateTarget);
+    window.removeEventListener('resize', renderPosition);
+    window.visualViewport?.removeEventListener('resize', renderPosition);
+    window.visualViewport?.removeEventListener('scroll', renderPosition);
+    img.remove();
+    anchor.remove();
+    cats.delete(img);
+  }
+  cats.set(img, remove);
 
-  requestAnimationFrame(loop); // Start loop
+  frame = requestAnimationFrame(loop); // Start loop
 
   // Animation loop to move the image smoothly
   function loop(currentTime) {
-    if (isIdle) { // IsIdle is only in the initial location
-      currentX = posAnchor.left + window.scrollX;
-      currentY = posAnchor.top + window.scrollY;
-      img.src = catName + '/still.gif';
-    }
+    if (!img.isConnected || (!isIdle && !anchor.isConnected)) { remove(); return; }
     // Only execute loop every 250ms
-    if (!(currentTime - lastTime >= loopEvery) || isDragging || isIdle) {
-      requestAnimationFrame(loop);
+    if (!(currentTime - lastTime >= loopEvery) || cancelDrag || isIdle) {
+      frame = requestAnimationFrame(loop);
       return;
     }
     else {
@@ -173,40 +248,19 @@ async function nenoController(img, catName) {
       dy = targetY - currentY - posImg.height / 2;
     }
     else if (follow == "initial") {
-      dx = posAnchor.left - currentX + window.scrollX;
-      dy = posAnchor.top - currentY + window.scrollY;
+      const home = anchor.getBoundingClientRect();
+      dx = home.left + window.scrollX - currentX;
+      dy = home.top + window.scrollY - currentY;
     }
 
     const distance = Math.hypot(dx, dy); //hypotenus
 
     // How far in each direction to split speed
-    let nextX = (dx / distance) * speed;
-    let nextY = (dy / distance) * speed;
-
-    // Prevent stepping out of frame
-    const currentBorderX = window.scrollX + window.innerWidth - posImg.width;
-    const currentBorderY = window.scrollY + window.innerHeight - posImg.height;
-    const toRightBorder = currentBorderX - currentX;
-    const toLeftBorder =  window.scrollX - currentX;
-    const toBottomBorder = currentBorderY - currentY;
-    const toTopBorder = window.scrollY - currentY;
-
-    const snapBack = false; // Snaps back onto frame edge if true
-    if (follow != "initial") { // Go outside of border if needed when going to initial
-      // Check if next step goes beyond frame and neno is not outside of frame
-      // If so take a step only to the frame edge
-      if (nextX > toRightBorder && (!(currentX > currentBorderX) || snapBack)) // Right border
-        nextX = toRightBorder;  
-      else if (nextX < toLeftBorder && (!(currentX < window.scrollX) || snapBack)) // Left border
-          nextX = toLeftBorder;
-      if (nextY > toBottomBorder && (!(currentY > currentBorderY) || snapBack)) // Bottom border
-        nextY = toBottomBorder;
-      else if (nextY < toTopBorder && (!(currentY < window.scrollY) || snapBack)) // Top border
-          nextY = toTopBorder;
-    }
+    const nextX = distance ? (dx / distance) * speed : 0;
+    const nextY = distance ? (dy / distance) * speed : 0;
 
     // Direction for animation
-    let directon;
+    let direction;
     const angleDegree = calcAngleDegrees(dx, dy);
     const directions = [ [0, "⬆️", "n"], [45, "↗️", "ne"], [90, "➡️", "e"], [135, "↘️", "se"], [180, "⬇️", "s"], [225, "↙️", "sw"], [270, "⬅️", "w"], [315, "↖️", "nw"], [360, "⬆️", "n"] ];
     direction = getClosest(angleDegree, directions)[2];
@@ -214,24 +268,17 @@ async function nenoController(img, catName) {
     // Stepping
     // Only use thresholdClose if following mouse
     if ((distance >= (follow == "mouse" ? thresholdClose : speed)) &&
-        (dx + dy != 0)) {
+        distance > 0) {
       currentX += nextX;
       currentY += nextY;
-      img.style.position = 'absolute';
-      img.style.padding = '0px';
-      img.style.margin = '0px';
 
     }
     // Take final step towards initial position
     else if ((distance < speed) &&
-        (dx + dy != 0) &&
         (follow == "initial")) {
-      isIdle = true;
-      currentX = posAnchor.left;
-      currentY = posAnchor.top;
-      img.style.position = '';
-      copyMarginPadding(initialStyleImg, img);
-      direction = "none"; // Snaps more into place with this
+      returnHome();
+      frame = requestAnimationFrame(loop);
+      return;
     }
     // Idling when waiting for mouse to move
     else {
@@ -247,9 +294,9 @@ async function nenoController(img, catName) {
     if (direction != "none" && sinceNone <= 1) {
       currentX -= nextX; currentY -= nextY; // Don't move
       if (sinceNone == 0)
-        img.src = catName + '/alert.gif';
+        setSprite('alert');
       else if (sinceNone == 1)
-        img.src = catName + '/still.gif';
+        setSprite('still');
       sinceNone++;
     }
     else if (direction == "none") {
@@ -264,30 +311,30 @@ async function nenoController(img, catName) {
         if (animation == 1)
           // Yawn
           if (animationCount <= 4) {
-            img.src = catName + '/yawn.gif';
+            setSprite('yawn');
           }
           else if (animationCount <= 10){
-            img.src = catName + '/still.gif';
+            setSprite('still');
           }
           else {
-            img.src = catName + '/still.gif';
+            setSprite('still');
             animation = 100;
           }
         // Sleep
         else if (animation == 100) {
           if ((animationCount % 6) < 3) {
-            img.src = catName + '/sleep1.gif';
+            setSprite('sleep1');
           } else {
-            img.src = catName + '/sleep2.gif';
+            setSprite('sleep2');
           }
         }
         // Itch
         else if (animation == 2) {
           loopEvery = 150;
           if (animationCount % 2 == 0)
-            img.src = catName + '/itch1.gif';
+            setSprite('itch1');
           else
-            img.src = catName + '/itch2.gif';
+            setSprite('itch2');
           if (animationCount >= 11)
             animation = false;
         }
@@ -298,37 +345,36 @@ async function nenoController(img, catName) {
             animation = Math.floor(Math.random() * 4) + 4;
 
           if (animation == 4)
-            img.src = catName + '/nscratch' + alternating + '.gif';
+            setSprite('nscratch' + alternating);
           else if (animation == 5)
-            img.src = catName + '/sscratch' + alternating + '.gif';
+            setSprite('sscratch' + alternating);
           else if (animation == 6)
-            img.src = catName + '/escratch' + alternating + '.gif';
+            setSprite('escratch' + alternating);
           else if (animation == 7)
-            img.src = catName + '/wscratch' + alternating + '.gif';
+            setSprite('wscratch' + alternating);
           if (animationCount >= 7)
             animation = false;
         }
         else {
-          img.src = catName + '/still.gif';
+          setSprite('still');
         }
 
         animationCount++;
       }
       else {
-        img.src = catName + '/still.gif';
+        setSprite('still');
       }
       sinceNone = 0;
     }
     else {
       animation = false;
-      img.src = catName + '/' + direction + 'run' + flip + '.gif';
+      setSprite(direction + 'run' + flip);
     }
 
     // Actual movement
-    img.style.left = currentX + 'px';
-    img.style.top = currentY + 'px';
+    renderPosition();
 
-    requestAnimationFrame(loop);
+    frame = requestAnimationFrame(loop);
   }
   function calcAngleDegrees(x, y) {
     return Math.abs(Math.floor((Math.atan2(x, y) * 180 / Math.PI)) - 180);
@@ -338,44 +384,5 @@ async function nenoController(img, catName) {
       return Math.abs(b[0] - number) < Math.abs(a[0] - number) ? b : a;
     });
   }
-  function wrapImageWithContainer(element) {
-    const container = document.createElement('div');
-    const style = window.getComputedStyle(element);
-
-    // Copy display and sizing
-    container.style.display = style.display;
-    container.style.width = style.width;
-    container.style.height = style.height;
-
-    // Copy margin and padding to avoid layout shifts
-    copyMarginPadding(style, container);
-
-    // Copy float and vertical-align (important for inline or floated images)
-    container.style.cssFloat = style.cssFloat;
-    container.style.verticalAlign = style.verticalAlign;
-
-    // Copy position
-    container.style.position = style.position;
-
-    // Insert container before img and move img inside container
-    element.parentNode.insertBefore(container, element);
-    container.appendChild(element);
-
-    return container;
-  }
-  function copyMarginPadding(style, element) {
-    element.style.marginTop = parseFloat(style.paddingTop) + parseFloat(style.marginTop) + 'px';
-    element.style.marginRight = parseFloat(style.paddingRight) + parseFloat(style.marginRight) + 'px';
-    element.style.marginBottom = parseFloat(style.paddingBottom) + parseFloat(style.marginBottom) + 'px';
-    element.style.marginLeft = parseFloat(style.paddingLeft) + parseFloat(style.marginLeft) + 'px';
-  }
-  async function waitForClick(element) {
-    return new Promise(resolve => {
-      const handler = () => {
-        element.removeEventListener('click', handler); // Clean up
-        resolve();
-      };
-      element.addEventListener('click', handler);
-    });
-  }
 }
+})();
