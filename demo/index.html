@@ -6,8 +6,9 @@
   <title>Neno</title>
   <style>
     :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
-    body { max-width: 36rem; margin: 3rem auto; padding: 0 1rem; }
-    button { font: inherit; cursor: pointer; }
+    body { max-width: 40rem; margin: 3rem auto; padding: 0 1rem; }
+    button, select { font: inherit; cursor: pointer; }
+    #controls { white-space: nowrap; overflow-x: auto; }
     #cats { min-height: 32px; margin: 1rem 0; }
     #cats img { margin-right: .5rem; }
   </style>
@@ -17,24 +18,31 @@
   <h1>Neno</h1>
   <p>☢️ Neno The Radioactive Cat 🐱 is a webpage pet inspired by the first desktop pet Neko from the 90s</p>
   <div id="cats"><img class="neno" alt="Neno" width="32" height="32"></div>
-  <button type="button" id="spawn">Spawn a Neno</button>
-  <button type="button" id="spawn-many">Spawn 10 Nenos</button>
-  <button type="button" id="clear">Clear Nenos</button>
+  <div id="controls">
+    <select id="cat-type" aria-label="Cat"></select>
+    <button type="button" id="spawn">Spawn a Neno</button>
+    <button type="button" id="spawn-many">Spawn 10 Nenos</button>
+    <button type="button" id="follow">Follow cursor</button>
+    <button type="button" id="clear">Clear Nenos</button>
+  </div>
   <p id="count" role="status">1 Neno</p>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const cats = document.querySelector('#cats');
       const count = document.querySelector('#count');
+      const type = document.querySelector('#cat-type');
+      Neno.types.forEach(name => type.add(new Option(name, name)));
       function updateCount() {
         const n = Neno.count;
         count.textContent = `${n} ${n === 1 ? 'Neno' : 'Nenos'}`;
       }
       function spawn(n) {
-        for (let i = 0; i < n; i++) Neno.spawn(cats);
+        for (let i = 0; i < n; i++) Neno.spawn(cats, type.value);
         updateCount();
       }
       document.querySelector('#spawn').onclick = () => spawn(1);
       document.querySelector('#spawn-many').onclick = () => spawn(10);
+      document.querySelector('#follow').onclick = () => Neno.followAll();
       document.querySelector('#clear').onclick = () => { Neno.clear(); updateCount(); };
     });
   </script>

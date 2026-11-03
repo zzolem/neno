@@ -4,7 +4,10 @@
   const sprites = null;
   const scriptURL = document.currentScript?.src || document.baseURI;
   const spriteURL = name => sprites ? sprites[name] : new URL('neno/' + name + '.gif', scriptURL).href;
+  const placeholder = spriteURL('blank');
   const cats = new Map();
+  const preloaded = new Map();
+  const types = 'white black gray calico robot peach colourful earth air water fire spirit rainbow silversky orange ghetto neon pink ghost lucky moka usa rose blue silver kuramecha kina ace spooky holiday valentine marmalade royal mermaid socks dave jess mike lucy fancy'.split(' ');
   const imgID = 'neno';
   // Wait for DOM to load
   function start() {
@@ -17,16 +20,20 @@
   }
   window.Neno = {
     init: start,
-    spawn(container = document.body) {
+    types: ['Neno', ...types],
+    spawn(container = document.body, alt = 'Neno') {
       const img = document.createElement('img');
       img.className = 'neno';
-      img.alt = 'Neno';
+      img.alt = alt;
       container.appendChild(img);
       nenoController(img, spriteURL);
       return img;
     },
+    followAll() {
+      for (const cat of cats.values()) cat.follow();
+    },
     clear() {
-      for (const remove of cats.values()) remove();
+      for (const cat of cats.values()) cat.remove();
     },
     get count() { return cats.size; }
   };
@@ -38,14 +45,33 @@
 
 function nenoController(img, spriteURL) {
   const events = new AbortController();
+  img.src = placeholder;
+  const type = img.alt.trim().toLowerCase();
+  const remote = types.includes(type);
+  if (remote) {
+    spriteURL = name => `https://webneko.net/${type}/${name}.gif`;
+    // Keep every frame loaded so switching poses cannot cancel a slow download.
+    if (!preloaded.has(type)) preloaded.set(type, Object.fromEntries('still alert nrun1 nrun2 nerun1 nerun2 erun1 erun2 serun1 serun2 srun1 srun2 swrun1 swrun2 wrun1 wrun2 nwrun1 nwrun2 yawn sleep1 sleep2 itch1 itch2 nscratch1 nscratch2 escratch1 escratch2 sscratch1 sscratch2 wscratch1 wscratch2'.split(' ').map(name => {
+      const image = new Image();
+      image.src = spriteURL(name);
+      return [name, image];
+    })));
+  }
+  const glow = remote ? 'none' : 'drop-shadow(0 0 5px #00ee00)';
   // A small personal chase angle spreads paths without changing the speed.
   const turn = (Math.random() - .5) * .24;
   const chaseCos = Math.cos(turn), chaseSin = Math.sin(turn);
   let currentSprite;
   function setSprite(name) {
+    if (remote && name === 'held') name = 'still';
     if (name === currentSprite) return;
     currentSprite = name;
-    img.src = spriteURL(name);
+    const frame = preloaded.get(type)?.[name];
+    // Keep the last pose (or the placeholder) until this frame has loaded.
+    if (!frame || (frame.complete && frame.naturalWidth)) img.src = spriteURL(name);
+    else frame.addEventListener('load', () => {
+      if (currentSprite === name) img.src = frame.src;
+    }, { once: true, signal: events.signal });
   }
   // Remove default dragging functionality for neno
   img.addEventListener('dragstart', preventDrag, { signal: events.signal });
@@ -56,7 +82,7 @@ function nenoController(img, spriteURL) {
   setSprite('still');
 
   const anchor = document.createElement('img');
-  anchor.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR4nO3BAQEAAACCIP+vbkhAAQAAAO8GECAAARlDNO4AAAAASUVORK5CYII=';
+  anchor.src = placeholder;
   anchor.alt = '';
   anchor.setAttribute('aria-hidden', 'true');
   anchor.style.visibility = 'hidden';
@@ -66,7 +92,7 @@ function nenoController(img, spriteURL) {
   img.style.cursor = 'pointer';
   img.style.touchAction = 'none';
   img.style.userSelect = 'none';
-  img.style.filter = 'drop-shadow(0 0 5px #00ee00)';
+  img.style.filter = glow;
   const homeStyle = img.style.cssText;
   img.removeAttribute('srcset');
   img.loading = 'eager';
@@ -102,7 +128,7 @@ function nenoController(img, spriteURL) {
     anchor.style.height = style.height;
     img.replaceWith(anchor);
     document.documentElement.appendChild(img);
-    img.style.cssText = 'all: initial !important; display: block !important; position: fixed !important; inset: auto !important; width: 32px !important; height: 32px !important; z-index: 1000 !important; cursor: pointer !important; touch-action: none !important; user-select: none !important; filter: drop-shadow(0 0 5px #00ee00) !important;';
+    img.style.cssText = `all: initial !important; display: block !important; position: fixed !important; inset: auto !important; width: 32px !important; height: 32px !important; z-index: 1000 !important; cursor: pointer !important; touch-action: none !important; user-select: none !important; filter: ${glow} !important;`;
     currentX = rect.left;
     currentY = rect.top;
     pagePosition = false;
@@ -226,7 +252,13 @@ function nenoController(img, spriteURL) {
     anchor.remove();
     cats.delete(img);
   }
-  cats.set(img, remove);
+  cats.set(img, { remove, follow() {
+    if (cancelDrag) return;
+    if (isIdle) activate();
+    follow = 'mouse';
+    positionOnPage(false);
+    renderPosition();
+  } });
 
   frame = requestAnimationFrame(loop); // Start loop
 
