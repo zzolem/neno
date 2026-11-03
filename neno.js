@@ -65,9 +65,10 @@ function nenoController(img, spriteURL) {
     })));
   }
   const glow = remote ? 'none' : 'drop-shadow(0 0 5px #00ee00)';
-  // A wider personal chase angle spreads paths without changing the speed.
+  // A wider personal chase angle spreads the running paths.
   const turn = (Math.random() - .5) * .8;
-  const chaseCos = Math.cos(turn), chaseSin = Math.sin(turn);
+  // Each cat keeps its own steady chase speed.
+  const chaseSpeed = 14 + Math.random() * 4;
   let currentSprite;
   function setSprite(name) {
     if (remote && name === 'held') name = 'still';
@@ -259,7 +260,9 @@ function nenoController(img, spriteURL) {
     anchor.remove();
     cats.delete(img);
   }
-  cats.set(img, { remove, follow(mode = 'mouse') {
+  cats.set(img, { remove, get position() {
+    return follow === 'mouse' && !isIdle && !cancelDrag ? { x: currentX, y: currentY } : null;
+  }, follow(mode = 'mouse') {
     if (cancelDrag || (isIdle && mode === 'initial')) return;
     if (isIdle) activate();
     follow = mode;
@@ -282,8 +285,8 @@ function nenoController(img, spriteURL) {
     }
     lastTime = currentTime;
 
-    const speed = 16; // pixels per running itteration
-    const thresholdClose = speed + posImg.width / 2; // Stop moving when this close to mouse
+    const speed = follow === 'mouse' ? chaseSpeed : 16;
+    const thresholdClose = 32; // Keep the same stopping distance for every cat.
     let dx, dy;
     if (follow == "mouse") {
       dx = targetX - currentX - posImg.width / 2;
@@ -300,8 +303,19 @@ function nenoController(img, spriteURL) {
     // How far in each direction to split speed
     let nextX = distance ? (dx / distance) * speed : 0;
     let nextY = distance ? (dy / distance) * speed : 0;
-    if (follow === 'mouse' && cats.size > 1) {
-      // Only bend the chase; the return home keeps its original straight path.
+    if (follow === 'mouse' && cats.size > 1 && distance >= thresholdClose) {
+      // Turn away from close followers while preserving each cat's step length.
+      let spacing = 0;
+      for (const [other, cat] of cats) {
+        if (other === img) continue;
+        const position = cat.position;
+        if (!position) continue;
+        const ox = currentX - position.x, oy = currentY - position.y;
+        const gap = Math.hypot(ox, oy);
+        if (gap < 48) spacing += (gap ? (dx * oy - dy * ox) / (distance * gap) : turn) * (1 - gap / 48);
+      }
+      const angle = turn + Math.max(-.6, Math.min(.6, spacing));
+      const chaseCos = Math.cos(angle), chaseSin = Math.sin(angle);
       const x = nextX;
       nextX = x * chaseCos - nextY * chaseSin;
       nextY = x * chaseSin + nextY * chaseCos;
