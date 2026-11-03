@@ -32,14 +32,18 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           cat > release-notes.md <<'NOTES'
-          Add Neno to your website:
+          Click Neno to make him follow your pointer. Click him again to make him return to his original spot, or grab him by the neck to drag him.
+
+          Easily embed Neno on your website:
 
           ```html
-          <img class="neno" alt="Neno">
+          <img class="neno">
           <script defer src="https://zzolem.github.io/neno/neno.min.js"></script>
           ```
 
-          [Try the demo](https://zzolem.github.io/neno/).
+          For variations, set the `alt` attribute on the `<img>` tag (e.g. `alt="calico"`). [See all variations](https://github.com/zzolem/neno#readme).
+
+          [Try Neno](https://zzolem.github.io/neno/).
 
           NOTES
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then

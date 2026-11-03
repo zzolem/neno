@@ -9,6 +9,7 @@
     body { max-width: 40rem; margin: 3rem auto; padding: 0 1rem; }
     button, select { font: inherit; cursor: pointer; }
     #controls { white-space: nowrap; overflow-x: auto; }
+    #controls > div + div { margin-top: .25rem; }
     #cats { min-height: 32px; margin: 1rem 0; }
     #cats img { margin-right: .5rem; }
   </style>
@@ -19,11 +20,16 @@
   <p>☢️ Neno The Radioactive Cat 🐱 is a webpage pet inspired by the first desktop pet Neko from the 90s</p>
   <div id="cats"><img class="neno" alt="Neno" width="32" height="32"></div>
   <div id="controls">
-    <select id="cat-type" aria-label="Cat"></select>
-    <button type="button" id="spawn">Spawn a Neno</button>
-    <button type="button" id="spawn-many">Spawn 10 Nenos</button>
-    <button type="button" id="follow">Follow cursor</button>
-    <button type="button" id="clear">Clear Nenos</button>
+    <div>
+      <select id="cat-type" aria-label="Cat"></select>
+      <button type="button" id="spawn">Spawn a Neno</button>
+      <button type="button" id="spawn-many">Spawn 10 Nenos</button>
+    </div>
+    <div>
+      <button type="button" id="follow">Follow cursor</button>
+      <button type="button" id="return">Return home</button>
+      <button type="button" id="clear">Clear Nenos</button>
+    </div>
   </div>
   <p id="count" role="status">1 Neno</p>
   <script>
@@ -43,6 +49,7 @@
       document.querySelector('#spawn').onclick = () => spawn(1);
       document.querySelector('#spawn-many').onclick = () => spawn(10);
       document.querySelector('#follow').onclick = () => Neno.followAll();
+      document.querySelector('#return').onclick = () => Neno.returnAll();
       document.querySelector('#clear').onclick = () => { Neno.clear(); updateCount(); };
     });
   </script>

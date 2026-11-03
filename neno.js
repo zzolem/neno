@@ -32,6 +32,9 @@
     followAll() {
       for (const cat of cats.values()) cat.follow();
     },
+    returnAll() {
+      for (const cat of cats.values()) cat.follow('initial');
+    },
     clear() {
       for (const cat of cats.values()) cat.remove();
     },
@@ -49,27 +52,30 @@ function nenoController(img, spriteURL) {
   img.src = placeholder;
   const type = img.alt.trim().toLowerCase();
   const remote = types.includes(type);
-  if (remote) {
-    spriteURL = name => `https://webneko.net/${type}/${name}.gif`;
-    // Keep every frame loaded so switching poses cannot cancel a slow download.
-    if (!preloaded.has(type)) preloaded.set(type, Object.fromEntries('still alert nrun1 nrun2 nerun1 nerun2 erun1 erun2 serun1 serun2 srun1 srun2 swrun1 swrun2 wrun1 wrun2 nwrun1 nwrun2 yawn sleep1 sleep2 itch1 itch2 nscratch1 nscratch2 escratch1 escratch2 sscratch1 sscratch2 wscratch1 wscratch2'.split(' ').map(name => {
+  const key = remote ? type : 'Neno';
+  if (remote) spriteURL = name => `https://webneko.net/${type}/${name}.gif`;
+  // Load each cat's frames once; both Neno and variations wait for ready images.
+  if (!preloaded.has(key)) {
+    const names = 'still alert nrun1 nrun2 nerun1 nerun2 erun1 erun2 serun1 serun2 srun1 srun2 swrun1 swrun2 wrun1 wrun2 nwrun1 nwrun2 yawn sleep1 sleep2 itch1 itch2 nscratch1 nscratch2 escratch1 escratch2 sscratch1 sscratch2 wscratch1 wscratch2'.split(' ');
+    if (!remote) names.push('held');
+    preloaded.set(key, Object.fromEntries(names.map(name => {
       const image = new Image();
       image.src = spriteURL(name);
       return [name, image];
     })));
   }
   const glow = remote ? 'none' : 'drop-shadow(0 0 5px #00ee00)';
-  // A small personal chase angle spreads paths without changing the speed.
-  const turn = (Math.random() - .5) * .24;
+  // A wider personal chase angle spreads paths without changing the speed.
+  const turn = (Math.random() - .5) * .8;
   const chaseCos = Math.cos(turn), chaseSin = Math.sin(turn);
   let currentSprite;
   function setSprite(name) {
     if (remote && name === 'held') name = 'still';
     if (name === currentSprite) return;
     currentSprite = name;
-    const frame = preloaded.get(type)?.[name];
+    const frame = preloaded.get(key)[name];
     // Keep the last pose (or the placeholder) until this frame has loaded.
-    if (!frame || (frame.complete && frame.naturalWidth)) img.src = spriteURL(name);
+    if (frame.complete && frame.naturalWidth) img.src = frame.src;
     else frame.addEventListener('load', () => {
       if (currentSprite === name) img.src = frame.src;
     }, { once: true, signal: events.signal });
@@ -253,11 +259,11 @@ function nenoController(img, spriteURL) {
     anchor.remove();
     cats.delete(img);
   }
-  cats.set(img, { remove, follow() {
-    if (cancelDrag) return;
+  cats.set(img, { remove, follow(mode = 'mouse') {
+    if (cancelDrag || (isIdle && mode === 'initial')) return;
     if (isIdle) activate();
-    follow = 'mouse';
-    positionOnPage(false);
+    follow = mode;
+    positionOnPage(mode === 'initial');
     renderPosition();
   } });
 
@@ -338,7 +344,7 @@ function nenoController(img, spriteURL) {
       if (sinceNone == 0) {
         setSprite('alert');
         // Vary only the alert pause; running keeps its regular pace.
-        if (follow === 'mouse') loopEvery = 150 + Math.random() * 200;
+        if (follow === 'mouse') loopEvery = 125 + Math.random() * 250;
       } else if (sinceNone == 1)
         setSprite('still');
       sinceNone++;
