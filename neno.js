@@ -45,6 +45,7 @@
 
 function nenoController(img, spriteURL) {
   const events = new AbortController();
+  if (!img.hasAttribute('alt')) img.alt = 'Neno';
   img.src = placeholder;
   const type = img.alt.trim().toLowerCase();
   const remote = types.includes(type);
